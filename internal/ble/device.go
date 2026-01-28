@@ -1,6 +1,8 @@
 package ble
 
 import (
+	"fmt"
+	"strings"
 	"sync"
 	"time"
 )
@@ -209,4 +211,96 @@ func (d *Device) Copy() Device {
 	}
 
 	return copy
+}
+
+// ADType represents an advertisement data type with its value
+type ADType struct {
+	Name  string
+	Value string
+}
+
+// GetADTypes returns all AD types seen from this device with their current values
+func (d *Device) GetADTypes() []ADType {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	var types []ADType
+
+	if d.Name != "" {
+		types = append(types, ADType{Name: "Local Name", Value: d.Name})
+	}
+
+	if d.ManufacturerID != nil {
+		company := GetManufacturerName(*d.ManufacturerID)
+		dataHex := ""
+		if len(d.ManufacturerData) > 2 {
+			dataHex = fmt.Sprintf(" [%x]", d.ManufacturerData[2:])
+		}
+		types = append(types, ADType{Name: "Manufacturer Data", Value: company + dataHex})
+	}
+
+	if len(d.ServiceUUIDs) > 0 {
+		types = append(types, ADType{Name: "Service UUIDs", Value: strings.Join(d.ServiceUUIDs, ", ")})
+	}
+
+	if len(d.ServiceData) > 0 {
+		var parts []string
+		for uuid, data := range d.ServiceData {
+			shortUUID := uuid
+			if len(uuid) > 8 {
+				shortUUID = uuid[:8]
+			}
+			parts = append(parts, fmt.Sprintf("%s:[%x]", shortUUID, data))
+		}
+		types = append(types, ADType{Name: "Service Data", Value: strings.Join(parts, ", ")})
+	}
+
+	if d.TxPowerLevel != nil {
+		types = append(types, ADType{Name: "TX Power", Value: fmt.Sprintf("%d dBm", *d.TxPowerLevel)})
+	}
+
+	return types
+}
+
+// FormatADTypesSummary returns a short summary of AD types for the list view
+func (d *Device) FormatADTypesSummary(maxLen int) string {
+	types := d.GetADTypes()
+	if len(types) == 0 {
+		return "-"
+	}
+
+	var parts []string
+	for _, t := range types {
+		// Abbreviate the name for the summary
+		shortName := t.Name
+		switch t.Name {
+		case "Local Name":
+			shortName = "Name"
+		case "Manufacturer Data":
+			shortName = "Mfg"
+		case "Service UUIDs":
+			shortName = "Svc"
+		case "Service Data":
+			shortName = "SvcData"
+		case "TX Power":
+			shortName = "TxPwr"
+		}
+
+		// Truncate value if too long
+		val := t.Value
+		if len(val) > 20 {
+			val = val[:17] + "..."
+		}
+		parts = append(parts, shortName+":"+val)
+	}
+
+	result := strings.Join(parts, ", ")
+	if maxLen > 0 && len(result) > maxLen {
+		if maxLen > 3 {
+			result = result[:maxLen-3] + "..."
+		} else {
+			result = result[:maxLen]
+		}
+	}
+	return result
 }

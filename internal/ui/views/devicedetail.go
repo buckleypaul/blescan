@@ -129,14 +129,10 @@ func (m DeviceDetailModel) renderContent() string {
 	// Statistics section
 	sections = append(sections, m.renderStatsSection())
 
-	// Manufacturer section
-	if m.Device.ManufacturerID != nil {
-		sections = append(sections, m.renderManufacturerSection())
-	}
-
-	// Services section
-	if len(m.Device.ServiceUUIDs) > 0 || len(m.Device.ServiceData) > 0 {
-		sections = append(sections, m.renderServicesSection())
+	// AD Types section
+	adTypes := m.Device.GetADTypes()
+	if len(adTypes) > 0 {
+		sections = append(sections, m.renderADTypesSection(adTypes))
 	}
 
 	// Advertisements section
@@ -238,7 +234,7 @@ func (m DeviceDetailModel) renderStatsSection() string {
 	return sectionStyle.Render(content.String())
 }
 
-func (m DeviceDetailModel) renderManufacturerSection() string {
+func (m DeviceDetailModel) renderADTypesSection(adTypes []ble.ADType) string {
 	sectionStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(styles.AccentColor).
@@ -246,63 +242,40 @@ func (m DeviceDetailModel) renderManufacturerSection() string {
 		Width(m.width - 8)
 
 	headerStyle := lipgloss.NewStyle().Bold(true).Foreground(styles.AccentColor)
-	labelStyle := lipgloss.NewStyle().Foreground(styles.MutedColor).Width(16)
-	valueStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("255"))
-	dataStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
-
-	var content strings.Builder
-	content.WriteString(headerStyle.Render("Manufacturer"))
-	content.WriteString("\n\n")
-
-	content.WriteString(labelStyle.Render("Company:"))
-	content.WriteString(valueStyle.Render(ble.GetManufacturerName(*m.Device.ManufacturerID)))
-	content.WriteString("\n")
-
-	content.WriteString(labelStyle.Render("Company ID:"))
-	content.WriteString(valueStyle.Render(fmt.Sprintf("0x%04X", *m.Device.ManufacturerID)))
-	content.WriteString("\n")
-
-	if len(m.Device.ManufacturerData) > 2 {
-		content.WriteString(labelStyle.Render("Data:"))
-		dataHex := fmt.Sprintf("%x", m.Device.ManufacturerData[2:])
-		// Wrap long data
-		maxDataWidth := m.width - 30
-		if len(dataHex) > maxDataWidth {
-			dataHex = dataHex[:maxDataWidth] + "..."
-		}
-		content.WriteString(dataStyle.Render(dataHex))
-	}
-
-	return sectionStyle.Render(content.String())
-}
-
-func (m DeviceDetailModel) renderServicesSection() string {
-	sectionStyle := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("147")).
-		Padding(0, 2).
-		Width(m.width - 8)
-
-	headerStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("147"))
+	labelStyle := lipgloss.NewStyle().Foreground(styles.MutedColor).Width(20)
 	valueStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("255"))
 
 	var content strings.Builder
-	content.WriteString(headerStyle.Render("Services"))
+	content.WriteString(headerStyle.Render("Advertisement Data Types"))
 	content.WriteString("\n\n")
 
-	if len(m.Device.ServiceUUIDs) > 0 {
-		for _, uuid := range m.Device.ServiceUUIDs {
-			content.WriteString("  • ")
-			content.WriteString(valueStyle.Render(uuid))
-			content.WriteString("\n")
-		}
+	maxValueWidth := m.width - 35
+	if maxValueWidth < 20 {
+		maxValueWidth = 20
 	}
 
-	for uuid, data := range m.Device.ServiceData {
-		content.WriteString("  • ")
-		content.WriteString(valueStyle.Render(uuid))
-		content.WriteString(": ")
-		content.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Render(fmt.Sprintf("%x", data)))
+	for _, adType := range adTypes {
+		content.WriteString(labelStyle.Render(adType.Name + ":"))
+
+		// Handle multi-line values (like long hex strings)
+		value := adType.Value
+		if len(value) > maxValueWidth {
+			// Wrap long values
+			for len(value) > 0 {
+				lineLen := maxValueWidth
+				if lineLen > len(value) {
+					lineLen = len(value)
+				}
+				content.WriteString(valueStyle.Render(value[:lineLen]))
+				value = value[lineLen:]
+				if len(value) > 0 {
+					content.WriteString("\n")
+					content.WriteString(strings.Repeat(" ", 20)) // Indent continuation
+				}
+			}
+		} else {
+			content.WriteString(valueStyle.Render(value))
+		}
 		content.WriteString("\n")
 	}
 

@@ -16,7 +16,7 @@ import (
 const (
 	ColName = iota
 	ColCompany
-	ColServices
+	ColADTypes
 	ColRSSI
 	ColAvg
 	ColCount
@@ -234,7 +234,7 @@ func (m DeviceListModel) View() string {
 }
 
 func (m *DeviceListModel) updateColumns() {
-	baseTitles := []string{"Name", "Company", "Services", "RSSI", "Avg", "Count", "Interval"}
+	baseTitles := []string{"Name", "Company", "AD Types", "RSSI", "Avg", "Count", "Interval"}
 
 	columns := make([]table.Column, len(baseTitles))
 	for i, title := range baseTitles {
@@ -304,11 +304,8 @@ func (m *DeviceListModel) updateTableRows() {
 			}
 		}
 
-		// Services - show UUIDs or "-"
-		services := "-"
-		if len(device.ServiceUUIDs) > 0 {
-			services = formatServiceUUIDs(device.ServiceUUIDs, m.columnWidths[ColServices]-2)
-		}
+		// AD Types summary
+		adTypes := device.FormatADTypesSummary(m.columnWidths[ColADTypes] - 2)
 
 		avgStr := fmt.Sprintf("%.1f", device.RSSIAverage)
 		countStr := fmt.Sprintf("%d", device.AdvCount)
@@ -321,7 +318,7 @@ func (m *DeviceListModel) updateTableRows() {
 		rows[i] = table.Row{
 			name,
 			company,
-			services,
+			adTypes,
 			fmt.Sprintf("%d", device.RSSICurrent),
 			avgStr,
 			countStr,
@@ -329,45 +326,6 @@ func (m *DeviceListModel) updateTableRows() {
 		}
 	}
 	m.table.SetRows(rows)
-}
-
-// formatServiceUUIDs formats service UUIDs to fit within maxLen
-func formatServiceUUIDs(uuids []string, maxLen int) string {
-	if len(uuids) == 0 {
-		return "-"
-	}
-
-	// Try to show shortened UUIDs
-	var parts []string
-	for _, uuid := range uuids {
-		short := shortenUUID(uuid)
-		parts = append(parts, short)
-	}
-
-	result := strings.Join(parts, ", ")
-	if maxLen > 0 && len(result) > maxLen {
-		// Truncate if too long
-		if maxLen > 3 {
-			result = result[:maxLen-3] + "..."
-		} else {
-			result = result[:maxLen]
-		}
-	}
-	return result
-}
-
-// shortenUUID returns a shortened version of a UUID
-func shortenUUID(uuid string) string {
-	// Standard 16-bit UUIDs in 128-bit form: 0000XXXX-0000-1000-8000-00805f9b34fb
-	// Just show the significant part
-	if len(uuid) == 36 && strings.HasSuffix(uuid, "-0000-1000-8000-00805f9b34fb") {
-		return uuid[4:8] // Return just the 16-bit part
-	}
-	// For other UUIDs, show first 8 chars
-	if len(uuid) > 8 {
-		return uuid[:8]
-	}
-	return uuid
 }
 
 func (m DeviceListModel) matchesFilter(d ble.Device) bool {
@@ -410,8 +368,8 @@ func (m DeviceListModel) compareByColumn(a, b ble.Device, col int) int {
 			bCompany = ble.GetManufacturerName(*b.ManufacturerID)
 		}
 		return strings.Compare(strings.ToLower(aCompany), strings.ToLower(bCompany))
-	case ColServices:
-		return compareInt(len(b.ServiceUUIDs), len(a.ServiceUUIDs)) // More services first
+	case ColADTypes:
+		return compareInt(len(b.GetADTypes()), len(a.GetADTypes())) // More AD types first
 	case ColRSSI:
 		return compareInt(int(b.RSSICurrent), int(a.RSSICurrent)) // Higher RSSI first
 	case ColAvg:
