@@ -8,8 +8,8 @@ import (
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/paulbuckley/blescan/internal/ble"
-	"github.com/paulbuckley/blescan/internal/ui/styles"
+	"github.com/buckleypaul/blescan/internal/ble"
+	"github.com/buckleypaul/blescan/internal/ui/styles"
 )
 
 // Column indices
@@ -66,9 +66,9 @@ func NewDeviceListModel() DeviceListModel {
 		filtered:       make([]ble.Device, 0),
 		table:          t,
 		filter:         NewFilterModel(),
-		sortColumn:     ColRSSI,
+		sortColumn:     ColAvg,
 		sortAscending:  false,
-		selectedColumn: ColRSSI,
+		selectedColumn: ColAvg,
 		columnWidths:   []int{20, 18, 20, 8, 8, 8, 10},
 	}
 	m.updateColumns()
@@ -384,10 +384,22 @@ func (m DeviceListModel) matchesFilter(d ble.Device) bool {
 }
 
 func (m DeviceListModel) compareDevices(a, b ble.Device) bool {
-	var less bool
-	switch m.sortColumn {
+	cmp := m.compareByColumn(a, b, m.sortColumn)
+	if cmp == 0 && m.sortColumn != ColAvg {
+		// Secondary sort by average RSSI (higher first) to reduce jumping
+		cmp = compareFloat(b.RSSIAverage, a.RSSIAverage)
+	}
+	if m.sortAscending {
+		return cmp > 0
+	}
+	return cmp < 0
+}
+
+// compareByColumn returns -1 if a < b, 0 if a == b, 1 if a > b for the given column
+func (m DeviceListModel) compareByColumn(a, b ble.Device, col int) int {
+	switch col {
 	case ColName:
-		less = strings.ToLower(a.GetDisplayName()) < strings.ToLower(b.GetDisplayName())
+		return strings.Compare(strings.ToLower(a.GetDisplayName()), strings.ToLower(b.GetDisplayName()))
 	case ColCompany:
 		aCompany := ""
 		bCompany := ""
@@ -397,22 +409,39 @@ func (m DeviceListModel) compareDevices(a, b ble.Device) bool {
 		if b.ManufacturerID != nil {
 			bCompany = ble.GetManufacturerName(*b.ManufacturerID)
 		}
-		less = strings.ToLower(aCompany) < strings.ToLower(bCompany)
+		return strings.Compare(strings.ToLower(aCompany), strings.ToLower(bCompany))
 	case ColServices:
-		less = len(a.ServiceUUIDs) > len(b.ServiceUUIDs) // More services first
+		return compareInt(len(b.ServiceUUIDs), len(a.ServiceUUIDs)) // More services first
 	case ColRSSI:
-		less = a.RSSICurrent > b.RSSICurrent // Higher RSSI first by default
+		return compareInt(int(b.RSSICurrent), int(a.RSSICurrent)) // Higher RSSI first
 	case ColAvg:
-		less = a.RSSIAverage > b.RSSIAverage
+		return compareFloat(b.RSSIAverage, a.RSSIAverage) // Higher avg first
 	case ColCount:
-		less = a.AdvCount > b.AdvCount
+		return compareInt(int(b.AdvCount), int(a.AdvCount)) // Higher count first
 	case ColInterval:
-		less = a.AdvInterval < b.AdvInterval
+		return compareInt(int(a.AdvInterval), int(b.AdvInterval)) // Lower interval first
 	}
-	if m.sortAscending {
-		return !less
+	return 0
+}
+
+func compareInt(a, b int) int {
+	if a < b {
+		return -1
 	}
-	return less
+	if a > b {
+		return 1
+	}
+	return 0
+}
+
+func compareFloat(a, b float64) int {
+	if a < b {
+		return -1
+	}
+	if a > b {
+		return 1
+	}
+	return 0
 }
 
 // SetDevices updates the device list

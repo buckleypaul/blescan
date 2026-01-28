@@ -4,8 +4,8 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/paulbuckley/blescan/internal/ble"
-	"github.com/paulbuckley/blescan/internal/ui/views"
+	"github.com/buckleypaul/blescan/internal/ble"
+	"github.com/buckleypaul/blescan/internal/ui/views"
 )
 
 // ViewState represents the current view

@@ -5,8 +5,8 @@ import (
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/paulbuckley/blescan/internal/stats"
-	"github.com/paulbuckley/blescan/internal/ui/styles"
+	"github.com/buckleypaul/blescan/internal/stats"
+	"github.com/buckleypaul/blescan/internal/ui/styles"
 )
 
 // FilterMode represents the current filter input mode

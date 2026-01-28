@@ -3,7 +3,7 @@ package stats
 import (
 	"time"
 
-	"github.com/paulbuckley/blescan/internal/ble"
+	"github.com/buckleypaul/blescan/internal/ble"
 )
 
 // FilterConfig defines filtering criteria for devices

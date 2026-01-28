@@ -8,9 +8,9 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/paulbuckley/blescan/internal/ble"
-	"github.com/paulbuckley/blescan/internal/stats"
-	"github.com/paulbuckley/blescan/internal/ui/styles"
+	"github.com/buckleypaul/blescan/internal/ble"
+	"github.com/buckleypaul/blescan/internal/stats"
+	"github.com/buckleypaul/blescan/internal/ui/styles"
 )
 
 // DeviceDetailModel represents the device detail view
