@@ -341,19 +341,8 @@ func (m DeviceDetailModel) renderAdvertisementsSection() string {
 		content.WriteString(rssiStyle.Render(fmt.Sprintf("%4d", adv.RSSI)))
 		content.WriteString(" dBm  ")
 
-		if len(adv.ManufacturerData) > 0 {
-			dataHex := fmt.Sprintf("%x", adv.ManufacturerData)
-			maxLen := m.width - 40
-			if maxLen < 20 {
-				maxLen = 20
-			}
-			if len(dataHex) > maxLen {
-				dataHex = dataHex[:maxLen] + "..."
-			}
-			content.WriteString(dataStyle.Render(dataHex))
-		} else {
-			content.WriteString(dataStyle.Render("-"))
-		}
+		dataHex := formatAdvPayload(adv, m.width-40)
+		content.WriteString(dataStyle.Render(dataHex))
 		content.WriteString("\n")
 	}
 
@@ -365,6 +354,45 @@ func formatInterval(d time.Duration) string {
 		return "-"
 	}
 	return fmt.Sprintf("%dms", d.Milliseconds())
+}
+
+// formatAdvPayload returns a hex string of the advertisement payload
+// Prefers manufacturer data, falls back to service data
+func formatAdvPayload(adv ble.Advertisement, maxLen int) string {
+	if maxLen < 20 {
+		maxLen = 20
+	}
+
+	var dataHex string
+	var prefix string
+
+	if len(adv.ManufacturerData) > 0 {
+		dataHex = fmt.Sprintf("%x", adv.ManufacturerData)
+	} else if len(adv.ServiceData) > 0 {
+		// Show first service data entry
+		for uuid, data := range adv.ServiceData {
+			if len(data) > 0 {
+				// Show shortened UUID prefix
+				shortUUID := uuid
+				if len(uuid) > 8 {
+					shortUUID = uuid[:8]
+				}
+				prefix = shortUUID + ":"
+				dataHex = fmt.Sprintf("%x", data)
+				break
+			}
+		}
+	}
+
+	if dataHex == "" {
+		return "-"
+	}
+
+	full := prefix + dataHex
+	if len(full) > maxLen {
+		full = full[:maxLen] + "..."
+	}
+	return full
 }
 
 // UpdateDevice updates the device being displayed
