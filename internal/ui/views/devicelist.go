@@ -495,7 +495,31 @@ func (m DeviceListModel) renderColumnSelector() string {
 	b.WriteString(title + "\n\n")
 	b.WriteString("Use ↑/↓ or j/k to navigate, Space to toggle, Enter to apply, Esc to cancel\n\n")
 
+	// Group columns by category
+	currentCategory := ColumnCategory(-1)
 	for i, def := range ColumnRegistry {
+		// Add category header if this is a new category
+		if def.Category != currentCategory {
+			if currentCategory != -1 {
+				b.WriteString("\n") // Blank line between categories
+			}
+			currentCategory = def.Category
+
+			categoryTitle := ""
+			switch def.Category {
+			case CategoryAdvertisement:
+				categoryTitle = "Advertisement Data:"
+			case CategoryMetadata:
+				categoryTitle = "Metadata:"
+			}
+
+			categoryStyle := lipgloss.NewStyle().
+				Bold(true).
+				Foreground(styles.SecondaryColor).
+				Render(categoryTitle)
+			b.WriteString(categoryStyle + "\n")
+		}
+
 		enabled := m.filter.isColumnEnabled(def.ID)
 
 		checkbox := "[ ]"

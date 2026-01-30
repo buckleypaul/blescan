@@ -6,17 +6,26 @@ import (
 	"github.com/buckleypaul/blescan/internal/ble"
 )
 
+// ColumnCategory represents the category of a column
+type ColumnCategory int
+
+const (
+	CategoryAdvertisement ColumnCategory = iota // Data from BLE advertisement packets
+	CategoryMetadata                            // Computed/derived metadata
+)
+
 // ColumnDefinition describes a single column in the device list
 type ColumnDefinition struct {
-	ID           string // "flags", "name", "service_uuids", etc.
-	Title        string // Display name: "Flags", "Name", "Svc UUIDs"
-	ShortTitle   string // Abbreviated: "Flg", "Name", "Svc"
-	MinWidth     int    // Minimum column width
-	DefaultWidth int    // Default width
-	WidthPct     int    // Percentage for proportional sizing
-	ADTypes      []uint8 // Associated AD type codes
+	ID           string         // "flags", "name", "service_uuids", etc.
+	Title        string         // Display name: "Flags", "Name", "Svc UUIDs"
+	ShortTitle   string         // Abbreviated: "Flg", "Name", "Svc"
+	Category     ColumnCategory // Category for grouping in UI
+	MinWidth     int            // Minimum column width
+	DefaultWidth int            // Default width
+	WidthPct     int            // Percentage for proportional sizing
+	ADTypes      []uint8        // Associated AD type codes
 	Formatter    func(*ble.Device) string // Data extraction function
-	Available    bool   // Whether this AD type is available from library
+	Available    bool // Whether this AD type is available from library
 }
 
 // ColumnRegistry defines all possible columns
@@ -25,6 +34,7 @@ var ColumnRegistry = []ColumnDefinition{
 		ID:           "flags",
 		Title:        "Flags",
 		ShortTitle:   "Flg",
+		Category:     CategoryAdvertisement,
 		MinWidth:     10,
 		DefaultWidth: 10,
 		WidthPct:     7,
@@ -38,6 +48,7 @@ var ColumnRegistry = []ColumnDefinition{
 		ID:           "name",
 		Title:        "Name",
 		ShortTitle:   "Name",
+		Category:     CategoryAdvertisement,
 		MinWidth:     10,
 		DefaultWidth: 20,
 		WidthPct:     13,
@@ -54,6 +65,7 @@ var ColumnRegistry = []ColumnDefinition{
 		ID:           "service_uuids",
 		Title:        "Svc UUIDs",
 		ShortTitle:   "Svc",
+		Category:     CategoryAdvertisement,
 		MinWidth:     12,
 		DefaultWidth: 12,
 		WidthPct:     11,
@@ -67,6 +79,7 @@ var ColumnRegistry = []ColumnDefinition{
 		ID:           "service_data",
 		Title:        "Svc Data",
 		ShortTitle:   "SvcD",
+		Category:     CategoryAdvertisement,
 		MinWidth:     12,
 		DefaultWidth: 12,
 		WidthPct:     11,
@@ -80,6 +93,7 @@ var ColumnRegistry = []ColumnDefinition{
 		ID:           "appearance",
 		Title:        "Appearance",
 		ShortTitle:   "App",
+		Category:     CategoryAdvertisement,
 		MinWidth:     12,
 		DefaultWidth: 12,
 		WidthPct:     9,
@@ -93,6 +107,7 @@ var ColumnRegistry = []ColumnDefinition{
 		ID:           "other_ad",
 		Title:        "Other AD",
 		ShortTitle:   "Other",
+		Category:     CategoryAdvertisement,
 		MinWidth:     12,
 		DefaultWidth: 12,
 		WidthPct:     10,
@@ -106,6 +121,7 @@ var ColumnRegistry = []ColumnDefinition{
 		ID:           "company",
 		Title:        "Company",
 		ShortTitle:   "Mfg",
+		Category:     CategoryAdvertisement,
 		MinWidth:     10,
 		DefaultWidth: 18,
 		WidthPct:     13,
@@ -119,9 +135,27 @@ var ColumnRegistry = []ColumnDefinition{
 		Available: true,
 	},
 	{
+		ID:           "tx_power",
+		Title:        "TX Power",
+		ShortTitle:   "TxPwr",
+		Category:     CategoryAdvertisement,
+		MinWidth:     8,
+		DefaultWidth: 10,
+		WidthPct:     7,
+		ADTypes:      []uint8{0x0A},
+		Formatter: func(d *ble.Device) string {
+			if d.TxPowerLevel != nil {
+				return fmt.Sprintf("%d dBm", *d.TxPowerLevel)
+			}
+			return "-"
+		},
+		Available: true,
+	},
+	{
 		ID:           "rssi",
 		Title:        "RSSI",
 		ShortTitle:   "RSSI",
+		Category:     CategoryMetadata,
 		MinWidth:     8,
 		DefaultWidth: 10,
 		WidthPct:     9,
@@ -135,6 +169,7 @@ var ColumnRegistry = []ColumnDefinition{
 		ID:           "count",
 		Title:        "Count",
 		ShortTitle:   "Cnt",
+		Category:     CategoryMetadata,
 		MinWidth:     6,
 		DefaultWidth: 8,
 		WidthPct:     8,
@@ -148,6 +183,7 @@ var ColumnRegistry = []ColumnDefinition{
 		ID:           "interval",
 		Title:        "Interval",
 		ShortTitle:   "Int",
+		Category:     CategoryMetadata,
 		MinWidth:     8,
 		DefaultWidth: 10,
 		WidthPct:     9,
@@ -155,22 +191,6 @@ var ColumnRegistry = []ColumnDefinition{
 		Formatter: func(d *ble.Device) string {
 			if d.AdvInterval > 0 {
 				return fmt.Sprintf("%dms", d.AdvInterval.Milliseconds())
-			}
-			return "-"
-		},
-		Available: true,
-	},
-	{
-		ID:           "tx_power",
-		Title:        "TX Power",
-		ShortTitle:   "TxPwr",
-		MinWidth:     8,
-		DefaultWidth: 10,
-		WidthPct:     7,
-		ADTypes:      []uint8{0x0A},
-		Formatter: func(d *ble.Device) string {
-			if d.TxPowerLevel != nil {
-				return fmt.Sprintf("%d dBm", *d.TxPowerLevel)
 			}
 			return "-"
 		},
