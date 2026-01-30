@@ -104,16 +104,114 @@ var ColumnRegistry = []ColumnDefinition{
 		Available: true,
 	},
 	{
-		ID:           "other_ad",
-		Title:        "Other AD",
-		ShortTitle:   "Other",
+		ID:           "class_of_device",
+		Title:        "Class of Device",
+		ShortTitle:   "CoD",
+		Category:     CategoryAdvertisement,
+		MinWidth:     10,
+		DefaultWidth: 12,
+		WidthPct:     8,
+		ADTypes:      []uint8{0x0D},
+		Formatter: func(d *ble.Device) string {
+			return "-"
+		},
+		Available: false,
+	},
+	{
+		ID:           "service_solicitation",
+		Title:        "Svc Solicitation",
+		ShortTitle:   "SvcSol",
 		Category:     CategoryAdvertisement,
 		MinWidth:     12,
-		DefaultWidth: 12,
-		WidthPct:     10,
-		ADTypes:      []uint8{}, // Catch-all for non-standard types
+		DefaultWidth: 14,
+		WidthPct:     9,
+		ADTypes:      []uint8{0x14, 0x15, 0x1F},
 		Formatter: func(d *ble.Device) string {
-			return d.FormatOtherADTypes()
+			return "-"
+		},
+		Available: false,
+	},
+	{
+		ID:           "adv_interval",
+		Title:        "Adv Interval",
+		ShortTitle:   "AdvInt",
+		Category:     CategoryAdvertisement,
+		MinWidth:     10,
+		DefaultWidth: 12,
+		WidthPct:     8,
+		ADTypes:      []uint8{0x1A},
+		Formatter: func(d *ble.Device) string {
+			return "-"
+		},
+		Available: false,
+	},
+	{
+		ID:           "le_address",
+		Title:        "LE Address",
+		ShortTitle:   "LEAddr",
+		Category:     CategoryAdvertisement,
+		MinWidth:     12,
+		DefaultWidth: 14,
+		WidthPct:     9,
+		ADTypes:      []uint8{0x1B},
+		Formatter: func(d *ble.Device) string {
+			return "-"
+		},
+		Available: false,
+	},
+	{
+		ID:           "le_role",
+		Title:        "LE Role",
+		ShortTitle:   "Role",
+		Category:     CategoryAdvertisement,
+		MinWidth:     8,
+		DefaultWidth: 10,
+		WidthPct:     7,
+		ADTypes:      []uint8{0x1C},
+		Formatter: func(d *ble.Device) string {
+			return "-"
+		},
+		Available: false,
+	},
+	{
+		ID:           "uri",
+		Title:        "URI",
+		ShortTitle:   "URI",
+		Category:     CategoryAdvertisement,
+		MinWidth:     10,
+		DefaultWidth: 15,
+		WidthPct:     10,
+		ADTypes:      []uint8{0x24},
+		Formatter: func(d *ble.Device) string {
+			return "-"
+		},
+		Available: false,
+	},
+	{
+		ID:           "unknown_ad",
+		Title:        "Unknown AD",
+		ShortTitle:   "Unk",
+		Category:     CategoryAdvertisement,
+		MinWidth:     10,
+		DefaultWidth: 12,
+		WidthPct:     8,
+		ADTypes:      []uint8{}, // Catch-all for truly unknown types
+		Formatter: func(d *ble.Device) string {
+			return d.FormatUnknownADTypes()
+		},
+		Available: true,
+	},
+	{
+		ID:           "raw_data",
+		Title:        "Raw Data",
+		ShortTitle:   "Raw",
+		Category:     CategoryAdvertisement,
+		MinWidth:     20,
+		DefaultWidth: 40,
+		WidthPct:     15,
+		ADTypes:      []uint8{}, // All raw advertisement data
+		Formatter: func(d *ble.Device) string {
+			return d.FormatRawData()
 		},
 		Available: true,
 	},
@@ -206,7 +304,7 @@ func DefaultEnabledColumns() []string {
 		"service_uuids",
 		"service_data",
 		"appearance",
-		"other_ad",
+		"unknown_ad",
 		"company",
 		"rssi",
 		"count",
