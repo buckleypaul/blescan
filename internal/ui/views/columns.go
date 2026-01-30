@@ -213,7 +213,7 @@ var ColumnRegistry = []ColumnDefinition{
 		Formatter: func(d *ble.Device) string {
 			return d.FormatRawData()
 		},
-		Available: true,
+		Available: false, // TinyGo doesn't expose raw advertisement bytes
 	},
 	{
 		ID:           "company",
