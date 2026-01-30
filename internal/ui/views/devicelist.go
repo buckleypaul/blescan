@@ -513,7 +513,7 @@ func (m DeviceListModel) renderColumnSelector() string {
 			cursor = "> "
 		}
 
-		line := fmt.Sprintf("%s%s %s%s\n", cursor, checkbox, def.Title, available)
+		line := fmt.Sprintf("%s%s %s%s", cursor, checkbox, def.Title, available)
 
 		if i == m.filter.columnSelectorIdx {
 			line = lipgloss.NewStyle().
@@ -522,7 +522,7 @@ func (m DeviceListModel) renderColumnSelector() string {
 				Render(line)
 		}
 
-		b.WriteString(line)
+		b.WriteString(line + "\n")
 	}
 
 	return selectorStyle.Render(b.String())
