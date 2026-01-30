@@ -17,6 +17,9 @@ type Advertisement struct {
 	LocalName        string
 	TxPowerLevel     *int8
 	Connectable      bool
+	Flags            *uint8
+	Appearance       *uint16
+	ADTypes          []uint8 // All AD type codes in this advertisement
 }
 
 // NewAdvertisement creates a new Advertisement with the current timestamp
@@ -41,6 +44,41 @@ func (a *Advertisement) FormatManufacturerData() string {
 		return ""
 	}
 	return hex.EncodeToString(a.ManufacturerData)
+}
+
+// ParseADTypes extracts all AD type codes from raw advertisement data
+func (a *Advertisement) ParseADTypes() {
+	if len(a.RawData) == 0 {
+		return
+	}
+
+	var types []uint8
+	offset := 0
+
+	for offset < len(a.RawData) {
+		// Each AD structure: [length][type][data...]
+		if offset >= len(a.RawData) {
+			break
+		}
+
+		length := int(a.RawData[offset])
+		if length == 0 {
+			break // End of data
+		}
+
+		offset++
+		if offset >= len(a.RawData) {
+			break
+		}
+
+		adType := a.RawData[offset]
+		types = append(types, adType)
+
+		// Skip to next AD structure
+		offset += length
+	}
+
+	a.ADTypes = types
 }
 
 // String returns a formatted string representation of the advertisement

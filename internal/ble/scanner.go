@@ -2,6 +2,7 @@ package ble
 
 import (
 	"sync"
+	"time"
 
 	"tinygo.org/x/bluetooth"
 )
@@ -15,9 +16,15 @@ type Scanner struct {
 	// Channel for notifying UI of updates
 	Updates chan struct{}
 
-	scanning bool
-	stopChan chan struct{}
+	scanning    bool
+	stopChan    chan struct{}
+	cleanupTicker *time.Ticker
 }
+
+const (
+	deviceTimeout    = 30 * time.Second
+	cleanupInterval  = 5 * time.Second
+)
 
 // NewScanner creates a new BLE scanner
 func NewScanner() *Scanner {
@@ -37,6 +44,7 @@ func (s *Scanner) Start() error {
 
 	s.scanning = true
 
+	// Start BLE scanning
 	go func() {
 		_ = s.adapter.Scan(func(adapter *bluetooth.Adapter, result bluetooth.ScanResult) {
 			select {
@@ -49,6 +57,10 @@ func (s *Scanner) Start() error {
 		})
 	}()
 
+	// Start cleanup goroutine
+	s.cleanupTicker = time.NewTicker(cleanupInterval)
+	go s.cleanupStaleDevices()
+
 	return nil
 }
 
@@ -59,7 +71,44 @@ func (s *Scanner) Stop() {
 	}
 	s.scanning = false
 	close(s.stopChan)
+	if s.cleanupTicker != nil {
+		s.cleanupTicker.Stop()
+	}
 	_ = s.adapter.StopScan()
+}
+
+// cleanupStaleDevices runs periodically to remove devices not seen recently
+func (s *Scanner) cleanupStaleDevices() {
+	for {
+		select {
+		case <-s.stopChan:
+			return
+		case <-s.cleanupTicker.C:
+			now := time.Now()
+			s.mu.Lock()
+			var removed bool
+			for address, device := range s.devices {
+				device.mu.RLock()
+				lastSeen := device.LastSeen
+				device.mu.RUnlock()
+
+				if now.Sub(lastSeen) > deviceTimeout {
+					delete(s.devices, address)
+					removed = true
+				}
+			}
+			s.mu.Unlock()
+
+			// Notify UI if any devices were removed
+			if removed {
+				select {
+				case s.Updates <- struct{}{}:
+				default:
+					// Channel full, skip notification
+				}
+			}
+		}
+	}
 }
 
 func (s *Scanner) handleAdvertisement(result bluetooth.ScanResult) {
@@ -95,6 +144,26 @@ func (s *Scanner) handleAdvertisement(result bluetooth.ScanResult) {
 	// Check if device appears connectable based on available info
 	// Devices with names or service data are often connectable
 	adv.Connectable = result.LocalName() != "" || len(serviceData) > 0
+
+	// Infer AD types present from what we can detect
+	var adTypes []uint8
+	if adv.LocalName != "" {
+		adTypes = append(adTypes, 0x09) // Complete Local Name (we can't distinguish from shortened)
+	}
+	if len(adv.ManufacturerData) > 0 {
+		adTypes = append(adTypes, 0xFF) // Manufacturer Specific Data
+	}
+	if len(adv.ServiceUUIDs) > 0 {
+		// Could be 0x02, 0x03, 0x06, or 0x07 depending on UUID length and completeness
+		// For now, assume complete 16-bit service UUIDs
+		adTypes = append(adTypes, 0x03)
+	}
+	if len(adv.ServiceData) > 0 {
+		// Could be 0x16, 0x20, or 0x21 depending on UUID length
+		// For now, assume 16-bit UUID service data
+		adTypes = append(adTypes, 0x16)
+	}
+	adv.ADTypes = adTypes
 
 	s.mu.Lock()
 	device, exists := s.devices[address]
