@@ -54,8 +54,8 @@ func NewDeviceListModel() DeviceListModel {
 	// Build column lookup map
 	columnDefs := BuildColumnLookup()
 
-	// Default enabled columns
-	enabledColumns := DefaultEnabledColumns()
+	// Default enabled columns, sorted by category
+	enabledColumns := sortColumnsByCategory(DefaultEnabledColumns(), columnDefs)
 
 	// Find index of "rssi" column for default sorting
 	rssiIdx := -1
@@ -264,9 +264,16 @@ func (m DeviceListModel) View() string {
 func (m *DeviceListModel) updateColumns() {
 	columns := make([]table.Column, len(m.enabledColumns))
 
+	var prevCategory ColumnCategory = -1
 	for i, colID := range m.enabledColumns {
 		def := m.columnDefs[colID]
 		displayTitle := def.Title
+
+		// Add visual separator before first metadata column
+		if prevCategory == CategoryAdvertisement && def.Category == CategoryMetadata {
+			displayTitle = "│ " + displayTitle
+		}
+		prevCategory = def.Category
 
 		// Add selection marker
 		if i == m.selectedColumn {
@@ -555,7 +562,8 @@ func (m DeviceListModel) renderColumnSelector() string {
 // ApplyColumnConfiguration applies the temporary column configuration
 func (m *DeviceListModel) ApplyColumnConfiguration() {
 	if m.filter.tempEnabledColumns != nil && len(m.filter.tempEnabledColumns) > 0 {
-		m.enabledColumns = append([]string(nil), m.filter.tempEnabledColumns...)
+		// Sort columns by category: Advertisement first, then Metadata
+		m.enabledColumns = sortColumnsByCategory(m.filter.tempEnabledColumns, m.columnDefs)
 		m.columnWidths = make([]int, len(m.enabledColumns))
 
 		// Reset selected column if out of bounds
@@ -578,4 +586,26 @@ func (m *DeviceListModel) ApplyColumnConfiguration() {
 		m.applyFilterAndSort()
 	}
 	m.filter.tempEnabledColumns = nil
+}
+
+// sortColumnsByCategory sorts columns by category: Advertisement first, then Metadata
+func sortColumnsByCategory(columns []string, columnDefs map[string]*ColumnDefinition) []string {
+	var adColumns []string
+	var metaColumns []string
+
+	for _, colID := range columns {
+		if def, ok := columnDefs[colID]; ok {
+			if def.Category == CategoryMetadata {
+				metaColumns = append(metaColumns, colID)
+			} else {
+				adColumns = append(adColumns, colID)
+			}
+		}
+	}
+
+	// Concatenate: advertisement columns first, then metadata columns
+	result := make([]string, 0, len(adColumns)+len(metaColumns))
+	result = append(result, adColumns...)
+	result = append(result, metaColumns...)
+	return result
 }
