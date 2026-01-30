@@ -547,6 +547,9 @@ func (m *DeviceListModel) ApplyColumnConfiguration() {
 			m.sortColumn = 0
 		}
 
+		// Clear rows before updating columns to avoid index out of bounds
+		m.table.SetRows([]table.Row{})
+
 		m.updateTableSize()
 		m.applyFilterAndSort()
 	}
