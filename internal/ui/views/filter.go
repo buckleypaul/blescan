@@ -16,13 +16,16 @@ const (
 	FilterModeNone FilterMode = iota
 	FilterModeName
 	FilterModeRSSI
+	FilterModeColumns
 )
 
 // FilterModel handles filter input
 type FilterModel struct {
-	Mode      FilterMode
-	Config    stats.FilterConfig
-	textInput textinput.Model
+	Mode               FilterMode
+	Config             stats.FilterConfig
+	textInput          textinput.Model
+	columnSelectorIdx  int
+	tempEnabledColumns []string // Temporary storage during column selection
 }
 
 // NewFilterModel creates a new filter model
@@ -46,6 +49,39 @@ func (m FilterModel) Init() tea.Cmd {
 // Update handles filter input updates
 func (m FilterModel) Update(msg tea.Msg) (FilterModel, tea.Cmd) {
 	if m.Mode == FilterModeNone {
+		return m, nil
+	}
+
+	// Handle column selection mode separately
+	if m.Mode == FilterModeColumns {
+		switch msg := msg.(type) {
+		case tea.KeyMsg:
+			switch msg.String() {
+			case "up", "k":
+				m.columnSelectorIdx--
+				if m.columnSelectorIdx < 0 {
+					m.columnSelectorIdx = len(ColumnRegistry) - 1
+				}
+			case "down", "j":
+				m.columnSelectorIdx++
+				if m.columnSelectorIdx >= len(ColumnRegistry) {
+					m.columnSelectorIdx = 0
+				}
+			case " ":
+				// Toggle selected column
+				selectedColID := ColumnRegistry[m.columnSelectorIdx].ID
+				m.toggleColumn(selectedColID)
+			case "enter":
+				// Apply changes and exit
+				m.Mode = FilterModeNone
+				return m, nil
+			case "esc":
+				// Cancel changes and exit
+				m.tempEnabledColumns = nil
+				m.Mode = FilterModeNone
+				return m, nil
+			}
+		}
 		return m, nil
 	}
 
@@ -73,6 +109,10 @@ func (m FilterModel) Update(msg tea.Msg) (FilterModel, tea.Cmd) {
 func (m FilterModel) View() string {
 	if m.Mode == FilterModeNone {
 		return ""
+	}
+
+	if m.Mode == FilterModeColumns {
+		return "" // Column selector has its own view in devicelist.go
 	}
 
 	var label string
@@ -158,4 +198,28 @@ func (m FilterModel) FilterSummary() string {
 		result += p
 	}
 	return result
+}
+
+// toggleColumn toggles a column in the temporary enabled columns list
+func (m *FilterModel) toggleColumn(colID string) {
+	// Find and remove if present
+	for i, id := range m.tempEnabledColumns {
+		if id == colID {
+			// Remove from slice
+			m.tempEnabledColumns = append(m.tempEnabledColumns[:i], m.tempEnabledColumns[i+1:]...)
+			return
+		}
+	}
+	// Not found, add it
+	m.tempEnabledColumns = append(m.tempEnabledColumns, colID)
+}
+
+// isColumnEnabled checks if a column is enabled in the temp list
+func (m FilterModel) isColumnEnabled(colID string) bool {
+	for _, id := range m.tempEnabledColumns {
+		if id == colID {
+			return true
+		}
+	}
+	return false
 }
